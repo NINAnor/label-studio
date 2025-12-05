@@ -42,6 +42,7 @@ jobs:
           token: ${{ secrets.GIT_PAT }}
           fetch-depth: 1
           ref: ${{ inputs.ref }}
+          persist-credentials: false
 
       - name: Download feature flags
         env:

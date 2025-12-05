@@ -86,8 +86,11 @@ jobs:
         shell: bash
         run: |
           set -xeuo pipefail
-          git config --global user.name '${{ github.event.client_payload.author_username }}'
-          git config --global user.email '${{ github.event.client_payload.author_email }}'
+          git config --global user.name '${GITHUB_EVENT_CLIENT_PAYLOAD_AUTHOR_USERNAME}'
+          git config --global user.email '${GITHUB_EVENT_CLIENT_PAYLOAD_AUTHOR_EMAIL}'
+        env:
+          GITHUB_EVENT_CLIENT_PAYLOAD_AUTHOR_USERNAME: ${{ github.event.client_payload.author_username }}
+          GITHUB_EVENT_CLIENT_PAYLOAD_AUTHOR_EMAIL: ${{ github.event.client_payload.author_email }}
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -95,6 +98,7 @@ jobs:
           token: ${{ secrets.GIT_PAT }}
           fetch-depth: 0
           ref: ${{ steps.get-branch.outputs.name }}
+          persist-credentials: false
 
       - name: Checkout module
         uses: actions/checkout@v4
@@ -104,6 +108,7 @@ jobs:
           token: ${{ secrets.GIT_PAT }}
           fetch-depth: 1
           ref: ${{ github.event.client_payload.commit_sha }}
+          persist-credentials: false
 
       - uses: actions/setup-node@v3
         with:
@@ -123,7 +128,9 @@ jobs:
           key: ${{ env.CACHE_NAME_PREFIX }}-${{ runner.os }}-node-${{ env.NODE }}-${{ hashFiles('**/package.json') }}-${{ hashFiles('**/yarn.lock') }}
 
       - name: Print Yarn cache size
-        run: du -d 0 -h ${{ steps.yarn-cache-dir-path.outputs.dir }}
+        run: du -d 0 -h ${STEPS_YARN_CACHE_DIR_PATH_OUTPUTS_DIR}
+        env:
+          STEPS_YARN_CACHE_DIR_PATH_OUTPUTS_DIR: ${{ steps.yarn-cache-dir-path.outputs.dir }}
 
       - name: Install dependencies
         run: |
@@ -136,17 +143,22 @@ jobs:
         env:
           CI: false # on true webpack breaks on warnings, and we have them a lot
           NODE_ENV: 'production'
+          GITHUB_EVENT_CLIENT_PAYLOAD_EVENT_ACTION: ${{ github.event.client_payload.event_action }}
+          GITHUB_EVENT_CLIENT_PAYLOAD_BASE_BRANCH_NAME: ${{ github.event.client_payload.base_branch_name }}
+          GITHUB_EVENT_CLIENT_PAYLOAD_BRANCH_NAME: ${{ github.event.client_payload.branch_name }}
+          GITHUB_EVENT_CLIENT_PAYLOAD_TITLE: ${{ github.event.client_payload.title }}
+          GITHUB_EVENT_CLIENT_PAYLOAD_COMMIT_SHA: ${{ github.event.client_payload.commit_sha }}
         run: |
           yarn run build:module
-          if [[ "${{ github.event.client_payload.event_action }}" == 'merged' ]]; then 
-            branch="${{ github.event.client_payload.base_branch_name }}"
+          if [[ "${GITHUB_EVENT_CLIENT_PAYLOAD_EVENT_ACTION}" == 'merged' ]]; then 
+            branch="${GITHUB_EVENT_CLIENT_PAYLOAD_BASE_BRANCH_NAME}"
           else
-            branch="${{ github.event.client_payload.branch_name }}"
+            branch="${GITHUB_EVENT_CLIENT_PAYLOAD_BRANCH_NAME}"
           fi
           cat << EOF > "build/static/version.json"
           {
-            "message": "${{ github.event.client_payload.title }}",
-            "commit": "${{ github.event.client_payload.commit_sha }}",
+            "message": "${GITHUB_EVENT_CLIENT_PAYLOAD_TITLE}",
+            "commit": "${GITHUB_EVENT_CLIENT_PAYLOAD_COMMIT_SHA}",
             "branch": "${branch}",
             "date": "$(git log -1 --date=format:"%Y/%m/%d %T" --format="%ad" | cat)"
           }
@@ -176,12 +188,12 @@ jobs:
         run: |
           set -xeuo pipefail
 
-          if [[ "${{ github.event.client_payload.repo_name }}" == */dm2* ]]; then 
+          if [[ "${GITHUB_EVENT_CLIENT_PAYLOAD_REPO_NAME}" == */dm2* ]]; then 
             module_dist="${{ env.STATIC_DIST }}/dm"
-          elif [[ "${{ github.event.client_payload.repo_name }}" == */label-studio-frontend* ]]; then
+          elif [[ "${GITHUB_EVENT_CLIENT_PAYLOAD_REPO_NAME}" == */label-studio-frontend* ]]; then
             module_dist="${{ env.STATIC_DIST }}/lsf"
           else
-            echo "Repo ${{ github.event.client_payload.repo_name }} is not supported"
+            echo "Repo ${GITHUB_EVENT_CLIENT_PAYLOAD_REPO_NAME} is not supported"
             exit 1
           fi
           
@@ -191,8 +203,10 @@ jobs:
 
           git add "${{ env.STATIC_DIST }}"
           git status -s
-          git commit --allow-empty -m '[submodules] Build static ${{ github.event.client_payload.repo_name }}' -m 'Workflow run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}'
+          git commit --allow-empty -m '[submodules] Build static ${GITHUB_EVENT_CLIENT_PAYLOAD_REPO_NAME}' -m 'Workflow run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}'
           git push origin HEAD
+        env:
+          GITHUB_EVENT_CLIENT_PAYLOAD_REPO_NAME: ${{ github.event.client_payload.repo_name }}
 
       - name: "LSF Docs: Commit"
         if: endsWith( github.event.client_payload.repo_name, '/label-studio-frontend') && steps.lsf-docs-build.conclusion == 'success'
@@ -214,8 +228,8 @@ jobs:
         run: |
           set -xeuo pipefail
           
-          branch='${{ steps.get-branch.outputs.name }}'
-          base_branch='origin/${{ steps.get-branch.outputs.base_name }}'
+          branch='${STEPS_GET_BRANCH_OUTPUTS_NAME}'
+          base_branch='origin/${STEPS_GET_BRANCH_OUTPUTS_BASE_NAME}'
           
           lsf_path='label_studio/frontend/dist/lsf/'
           dm_path='label_studio/frontend/dist/dm/'
@@ -243,6 +257,9 @@ jobs:
             echo "Skipping push"
             exit 0
           fi
+        env:
+          STEPS_GET_BRANCH_OUTPUTS_NAME: ${{ steps.get-branch.outputs.name }}
+          STEPS_GET_BRANCH_OUTPUTS_BASE_NAME: ${{ steps.get-branch.outputs.base_name }}
 
       - name: Find or Create PR
         id: get-pr
@@ -402,9 +419,10 @@ jobs:
         shell: bash
         env:
           GIT_PAT: ${{ secrets.GIT_PAT }}
+          STEPS_GET_PR_OUTPUTS_NODE_ID: ${{ steps.get-pr.outputs.node_id }}
         run: |
           echo "$GIT_PAT" | gh auth login --with-token
-          gh api graphql -F id='${{ steps.get-pr.outputs.node_id }}' -f query='
+          gh api graphql -F id='${STEPS_GET_PR_OUTPUTS_NODE_ID}' -f query='
             mutation($id: ID!) {
               markPullRequestReadyForReview(input: { pullRequestId: $id }) {
                 pullRequest {
@@ -422,9 +440,10 @@ jobs:
         shell: bash
         env:
           GIT_PAT: ${{ secrets.GIT_PAT }}
+          STEPS_GET_PR_OUTPUTS_NODE_ID: ${{ steps.get-pr.outputs.node_id }}
         run: |
           echo "$GIT_PAT" | gh auth login --with-token
-          gh api graphql -f pull='${{ steps.get-pr.outputs.node_id }}' -f query='
+          gh api graphql -f pull='${STEPS_GET_PR_OUTPUTS_NODE_ID}' -f query='
             mutation($pull: ID!) {
               enablePullRequestAutoMerge(input: {pullRequestId: $pull, mergeMethod: SQUASH}) {
                 pullRequest {

@@ -47,9 +47,10 @@ jobs:
         shell: bash
         env:
           PR_HEAD: ${{ github.event.client_payload.pull_request.head.ref }}
+          NEEDS_UPDATE_UPDATE_FF_RESULT: ${{ needs.update-update-ff.result }}
         run: |
           reaction='-1'
-          if [[ '${{ needs.update-update-ff.result }}' == 'success' ]]; then
+          if [[ '${NEEDS_UPDATE_UPDATE_FF_RESULT}' == 'success' ]]; then
             reaction='+1'
           fi
           echo "reaction=${reaction}" >> $GITHUB_OUTPUT

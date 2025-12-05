@@ -40,6 +40,7 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ inputs.head_sha }}
+          persist-credentials: false
 
       - name: Run gitleaks
         run: |
@@ -54,7 +55,10 @@ jobs:
             --report-format=sarif \
             --report-path=results.sarif \
             --log-level=debug \
-            --log-opts='${{ inputs.base_sha }}..${{ inputs.head_sha }}'
+            --log-opts='${INPUTS_BASE_SHA}..${INPUTS_HEAD_SHA}'
+        env:
+          INPUTS_BASE_SHA: ${{ inputs.base_sha }}
+          INPUTS_HEAD_SHA: ${{ inputs.head_sha }}
 
       - name: Upload test results
         if: failure()

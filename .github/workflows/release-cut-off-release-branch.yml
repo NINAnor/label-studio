@@ -34,6 +34,7 @@ jobs:
           ref: ${{ inputs.ref }}
           submodules: 'recursive'
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Configure git
         shell: bash
@@ -50,12 +51,12 @@ jobs:
           
           regexp='^[v]?([0-9]+)\.([0-9]+)\.([0-9]+)$';
           
-          if [[ "${{ inputs.version }}" =~ $regexp ]]; then
+          if [[ "${INPUTS_VERSION}" =~ $regexp ]]; then
               first="${BASH_REMATCH[1]}"
               second="${BASH_REMATCH[2]}"
               third="${BASH_REMATCH[3]}"
           else
-              echo "${{ inputs.version }} does not mach the regexp ${regexp}"
+              echo "${INPUTS_VERSION} does not mach the regexp ${regexp}"
               exit 1
           fi
           
@@ -66,6 +67,8 @@ jobs:
           echo "release_branch=${release_branch}" >> $GITHUB_OUTPUT
           echo "release_version=${release_version}" >> $GITHUB_OUTPUT
           echo "next_develop_version=${next_develop_version}" >> $GITHUB_OUTPUT
+        env:
+          INPUTS_VERSION: ${{ inputs.version }}
 
       - name: Cut dependencies release branches
         uses: actions/github-script@v6
@@ -150,9 +153,11 @@ jobs:
         run: |
           set -xeuo pipefail
           
-          git checkout -b "${{ steps.calculate_branch_name_and_version.outputs.release_branch }}"
+          git checkout -b "${STEPS_CALCULATE_BRANCH_NAME_AND_VERSION_OUTPUTS_RELEASE_BRANCH}"
           echo "commit=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
-          git push origin HEAD:refs/heads/${{ steps.calculate_branch_name_and_version.outputs.release_branch }}
+          git push origin HEAD:refs/heads/${STEPS_CALCULATE_BRANCH_NAME_AND_VERSION_OUTPUTS_RELEASE_BRANCH}
+        env:
+          STEPS_CALCULATE_BRANCH_NAME_AND_VERSION_OUTPUTS_RELEASE_BRANCH: ${{ steps.calculate_branch_name_and_version.outputs.release_branch }}
 
   set-version-default-branch:
     name: 'Set version in default branch'
