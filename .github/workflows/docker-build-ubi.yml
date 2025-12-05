@@ -30,6 +30,7 @@ jobs:
           submodules: 'recursive'
           ref: ${{ inputs.sha }}
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2.10.0
@@ -172,4 +173,6 @@ jobs:
               ${{ env.PREFLIGHT_REPO }} \
               check container "${image}" \
               --submit
-          done <<< '${{ steps.generate-tags.outputs.redhat-tags }},'
+          done <<< '${STEPS_GENERATE_TAGS_OUTPUTS_REDHAT_TAGS},'
+        env:
+          STEPS_GENERATE_TAGS_OUTPUTS_REDHAT_TAGS: ${{ steps.generate-tags.outputs.redhat-tags }}

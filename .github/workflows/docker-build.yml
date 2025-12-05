@@ -35,20 +35,22 @@ jobs:
           submodules: 'recursive'
           ref: ${{ inputs.sha }}
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Calculate version
         id: version
         env:
           BRANCH_NAME: ${{ inputs.branch_name }}
+          INPUTS_BRANCH_NAME: ${{ inputs.branch_name }}
         run: |
           set -x
           sha="$(git rev-parse HEAD)"
           echo "sha=$sha" >> $GITHUB_OUTPUT
           regexp='^ls-release\/(.*)$'; 
-          if [[ '${{ inputs.branch_name }}' =~ $regexp ]]; then
+          if [[ '${INPUTS_BRANCH_NAME}' =~ $regexp ]]; then
             image_version="${BASH_REMATCH[1]}rc${sha}"
           else
-            image_version='${{ inputs.branch_name }}'
+            image_version='${INPUTS_BRANCH_NAME}'
           fi
           echo "image_version=${image_version}" >> $GITHUB_OUTPUT
           echo "ubi_image_version=ubi_${image_version}" >> $GITHUB_OUTPUT

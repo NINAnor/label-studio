@@ -37,6 +37,7 @@ jobs:
         with:
           repository: "${{ github.repository_owner }}/${{ env.HELM_CHART_REPO_NAME }}"
           token: ${{ secrets.GIT_PAT }}
+          persist-credentials: false
 
       - name: Edit Label Studio Chart
         env:
@@ -56,5 +57,7 @@ jobs:
       - name: Commit and Push
         run: |
           git add "${LS_CHART_PATH}"
-          git commit -m 'Bump Label Studio to ${{ inputs.docker_image_version }}' -m 'Workflow run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}'
+          git commit -m 'Bump Label Studio to ${INPUTS_DOCKER_IMAGE_VERSION}' -m 'Workflow run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}'
           git push origin
+        env:
+          INPUTS_DOCKER_IMAGE_VERSION: ${{ inputs.docker_image_version }}
